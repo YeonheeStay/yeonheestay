@@ -348,10 +348,28 @@
   }
   function refreshGh() {
     var c = ghCfg();
-    var ready = !!(c.repo && c.token && /^[^/]+\/[^/]+$/.test(c.repo));
+    var repoOk = /^[^/\s]+\/[^/\s]+$/.test(c.repo);
+    var ready = !!(repoOk && c.token);
+
     $('ghSaveBtn').disabled = !ready;
+    $('ghTest').disabled = !ready;
     $('ghDot').className = 'dot ' + (ready ? 'on' : '');
     $('ghText').textContent = ready ? c.repo + ' · ' + c.branch : '미설정';
+
+    // 왜 잠겨 있는지 화면에 표시
+    var missing = [];
+    if (!c.repo) missing.push('저장소 주소');
+    else if (!repoOk) missing.push('저장소 주소 형식(계정/저장소이름)');
+    if (!c.token) missing.push('액세스 토큰');
+
+    var hint = $('ghHint');
+    if (missing.length) {
+      hint.textContent = missing.join(' · ') + ' 을(를) 입력하면 위쪽 “GitHub에 저장” 버튼이 활성화됩니다.';
+      $('ghSaveBtn').title = missing.join(', ') + ' 을(를) 먼저 입력해주세요';
+    } else {
+      hint.textContent = '준비됐습니다. “연결 테스트”로 확인한 뒤 위쪽 “GitHub에 저장”을 누르면 홈페이지에 반영됩니다.';
+      $('ghSaveBtn').title = '';
+    }
   }
   ['ghRepo', 'ghBranch', 'ghPath', 'ghToken'].forEach(function (id) {
     $(id).addEventListener('input', refreshGh);
@@ -387,6 +405,47 @@
     toast('토큰을 지웠습니다.');
   });
 
+  function ghHeaders(c) {
+    return {
+      'Authorization': 'Bearer ' + c.token,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28'
+    };
+  }
+
+  /* 저장 전에 토큰·권한이 제대로 설정됐는지 확인 (읽기만 합니다) */
+  $('ghTest').addEventListener('click', function () {
+    var c = ghCfg();
+    var btn = $('ghTest');
+    var msg = '';
+    btn.disabled = true;
+    $('ghHint').textContent = '확인 중…';
+
+    fetch('https://api.github.com/repos/' + c.repo + '/contents/' + c.path.replace(/^\/+/, '') +
+          '?ref=' + encodeURIComponent(c.branch), { headers: ghHeaders(c) })
+      .then(function (r) {
+        if (r.status === 401) throw new Error('토큰이 올바르지 않거나 만료되었습니다.');
+        if (r.status === 403) throw new Error('토큰에 이 저장소의 Contents 쓰기 권한이 없습니다.');
+        if (r.status === 404) throw new Error('저장소·브랜치·파일 경로를 찾을 수 없습니다. 입력값을 확인해주세요.');
+        if (!r.ok) throw new Error('확인 실패 (' + r.status + ')');
+        return r.json();
+      })
+      .then(function (j) {
+        msg = '연결 정상입니다. ' + c.repo + ' 의 ' + c.path + ' 파일을 찾았습니다 (' +
+              Math.round((j.size || 0) / 1024) + 'KB). 이제 “GitHub에 저장”을 사용할 수 있습니다.';
+        toast('연결 확인됐습니다.');
+      })
+      .catch(function (err) {
+        msg = '문제가 있습니다 — ' + err.message;
+        toast(err.message, true);
+      })
+      .then(function () {
+        btn.disabled = false;
+        refreshGh();                       // 버튼 상태를 먼저 갱신하고
+        if (msg) $('ghHint').textContent = msg;   // 결과 메시지를 남깁니다
+      });
+  });
+
   function b64utf8(str) {
     var bytes = new TextEncoder().encode(str);
     var bin = '';
@@ -401,11 +460,7 @@
     var c = ghCfg();
     var btn = $('ghSaveBtn');
     var api = 'https://api.github.com/repos/' + c.repo + '/contents/' + c.path.replace(/^\/+/, '');
-    var head = {
-      'Authorization': 'Bearer ' + c.token,
-      'Accept': 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28'
-    };
+    var head = ghHeaders(c);
 
     btn.disabled = true;
     setState('저장 중…', 'warn');

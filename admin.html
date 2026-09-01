@@ -214,7 +214,7 @@ textarea{resize:vertical;min-height:76px;line-height:1.7;}
 
         <div class="field">
           <label for="ghRepo">저장소 (계정/저장소이름)</label>
-          <input type="text" id="ghRepo" class="mono" placeholder="seangoodguy/yeonhee-stay">
+          <input type="text" id="ghRepo" class="mono" placeholder="계정/저장소이름" value="yeonheestay/yeonheestay">
         </div>
         <div class="field">
           <div class="row">
@@ -230,14 +230,22 @@ textarea{resize:vertical;min-height:76px;line-height:1.7;}
         </div>
         <div class="field">
           <label for="ghToken">액세스 토큰</label>
-          <input type="password" id="ghToken" class="mono" placeholder="github_pat_...">
+          <input type="password" id="ghToken" class="mono" placeholder="github_pat_... (여기에 붙여넣으면 저장 버튼이 켜집니다)">
+          <p class="hint" style="margin:8px 0 0;">
+            GitHub → 프로필 → <strong>Settings → Developer settings → Personal access tokens →
+            Fine-grained tokens → Generate new token</strong> 에서 발급합니다.
+            <strong>Repository access</strong>는 이 저장소 하나만,
+            <strong>Permissions → Repository permissions → Contents</strong>는 <strong>Read and write</strong>로 지정해주세요.
+          </p>
         </div>
         <div class="field">
           <div class="row">
             <button class="btn btn--line" id="ghSaveCfg" type="button">설정 저장</button>
+            <button class="btn btn--line" id="ghTest" type="button">연결 테스트</button>
             <button class="btn btn--line" id="ghClear" type="button">토큰 지우기</button>
             <span class="status"><span class="dot" id="ghDot"></span><span id="ghText">미설정</span></span>
           </div>
+          <p class="hint" id="ghHint" style="margin:12px 0 0;"></p>
         </div>
       </section>
     </main>
