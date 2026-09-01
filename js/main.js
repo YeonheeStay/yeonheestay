@@ -104,38 +104,64 @@
   });
 
   /* ------------------------------------------------------------------
-     6. 스크롤 리빌
-     IntersectionObserver 를 지원할 때만 숨김 상태를 켭니다.
-     (JS 가 실패해도 콘텐츠는 항상 보이도록)
-  ------------------------------------------------------------------ */
-  var items = document.querySelectorAll('[data-anim]');
-  if ('IntersectionObserver' in window && items.length) {
-    root.setAttribute('data-anim', '');
+     6. 스크롤 등장 효과
 
-    // 같은 부모 안에서는 살짝 시차를 둡니다.
-    Array.prototype.forEach.call(items, function (el) {
-      var siblings = el.parentNode ? el.parentNode.querySelectorAll(':scope > [data-anim]') : [];
-      var i = Array.prototype.indexOf.call(siblings, el);
-      if (i > 0) el.style.transitionDelay = Math.min(i, 5) * 90 + 'ms';
+     화면 아래쪽에 있는 요소에만 .pre 를 붙여 숨겨두고, 스크롤 위치를 기준으로
+     화면에 들어오는 순간 떼어냅니다. IntersectionObserver 처럼 환경에 따라
+     동작하지 않을 수 있는 기능에 의존하지 않으므로, 콘텐츠가 보이지 않는
+     상태로 남는 일이 없습니다.
+  ------------------------------------------------------------------ */
+  var items = Array.prototype.slice.call(document.querySelectorAll('[data-anim]'));
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (items.length && !reduceMotion) {
+    var LINE = 0.92;                     // 화면 높이의 92% 지점을 넘어오면 표시
+    var pending = [];
+
+    items.forEach(function (el) {
+      if (el.getBoundingClientRect().top > window.innerHeight * LINE) {
+        el.classList.add('pre');
+        pending.push(el);
+      }
     });
 
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('in');
-          io.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.14, rootMargin: '0px 0px -8% 0px' });
+    // 같은 부모 안에서는 살짝 시차를 둡니다.
+    pending.forEach(function (el) {
+      var parent = el.parentNode;
+      if (!parent || !parent.children) return;
+      var idx = 0;
+      for (var i = 0; i < parent.children.length; i++) {
+        var sib = parent.children[i];
+        if (sib === el) break;
+        if (sib.hasAttribute && sib.hasAttribute('data-anim')) idx++;
+      }
+      if (idx > 0) el.style.transitionDelay = Math.min(idx, 5) * 90 + 'ms';
+    });
 
-    Array.prototype.forEach.call(items, function (el) { io.observe(el); });
+    var sweeping = false;
+    function sweep() {
+      sweeping = false;
+      if (!pending.length) return;
+      var line = window.innerHeight * LINE;
+      var rest = [];
+      for (var i = 0; i < pending.length; i++) {
+        if (pending[i].getBoundingClientRect().top < line) pending[i].classList.remove('pre');
+        else rest.push(pending[i]);
+      }
+      pending = rest;
+    }
+    function queueSweep() {
+      if (sweeping) return;
+      sweeping = true;
+      window.requestAnimationFrame(sweep);
+    }
 
-    // 안전장치: 어떤 이유로든 관찰이 동작하지 않으면 3초 뒤 모두 표시
-    window.setTimeout(function () {
-      Array.prototype.forEach.call(document.querySelectorAll('[data-anim]:not(.in)'), function (el) {
-        var r = el.getBoundingClientRect();
-        if (r.top < window.innerHeight) el.classList.add('in');
-      });
-    }, 3000);
+    window.addEventListener('scroll', queueSweep, { passive: true });
+    window.addEventListener('resize', queueSweep);
+    window.addEventListener('load', queueSweep);
+    window.addEventListener('hashchange', queueSweep);
+    document.addEventListener('visibilitychange', queueSweep);
+    // 글꼴·이미지 로딩으로 위치가 바뀌는 경우까지 커버
+    [120, 600, 1600, 3200].forEach(function (t) { window.setTimeout(sweep, t); });
   }
 })();

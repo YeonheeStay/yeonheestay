@@ -502,17 +502,16 @@ html.lang-en .ko{display:none;}
 @media (max-width:999px){body{padding-bottom:74px;}}
 
 /* ==========================================================================
-   motion — applied only after JS confirms support
+   motion
+   스크립트가 화면 아래쪽 요소에만 .pre 를 붙여 숨기고, 스크롤되어 들어오면 떼어냅니다.
+   스크립트가 실행되지 않으면 아무것도 숨겨지지 않으므로 콘텐츠는 항상 보입니다.
    ========================================================================== */
-html[data-anim] [data-anim]{
-  opacity:0;transform:translateY(20px);
-  transition:opacity .85s var(--ease), transform .85s var(--ease);
-}
-html[data-anim] [data-anim].in{opacity:1;transform:none;}
+[data-anim]{transition:opacity .8s var(--ease), transform .8s var(--ease);}
+[data-anim].pre{opacity:0;transform:translateY(20px);}
 
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto;}
-  html[data-anim] [data-anim]{opacity:1;transform:none;transition:none;}
+  [data-anim],[data-anim].pre{opacity:1;transform:none;transition:none;}
   .hero-media img{animation:none;}
   .hero-scroll .ic{animation:none;}
 }
